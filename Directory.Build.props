@@ -1,12 +1,12 @@
 <Project>
 	<PropertyGroup>
-		<Version>1.1.5</Version>
+		<Version>2.1.2</Version>	
 		<Nullable>enable</Nullable>
+		<TargetFramework>net6.0</TargetFramework>
+		<IsWebConfigTransformDisabled>true</IsWebConfigTransformDisabled> 		
 		<Description>github加速神器</Description>
 		<Copyright>https://github.com/dotnetcore/FastGithub</Copyright>
-		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
-		<TargetFrameworks>net5.0;net6.0</TargetFrameworks>
-		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>	
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">

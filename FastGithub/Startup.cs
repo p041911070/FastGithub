@@ -1,6 +1,11 @@
+using FastGithub.Configuration;
+using FastGithub.FlowAnalyze;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using System;
 
 namespace FastGithub
 {
@@ -26,14 +31,20 @@ namespace FastGithub
         /// <param name="services"></param>
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddConfiguration().Bind(this.Configuration.GetSection(nameof(FastGithub)));
-            services.AddDnsServer();
+            services.Configure<AppOptions>(this.Configuration);
+            services.Configure<FastGithubOptions>(this.Configuration.GetSection(nameof(FastGithub)));
+
+            services.AddConfiguration();
             services.AddDomainResolve();
             services.AddHttpClient();
             services.AddReverseProxy();
+            services.AddFlowAnalyze();
+            services.AddHostedService<AppHostedService>();
 
-            services.AddHostedService<HostedService>();
-            services.AddControllersWithViews();
+            if (OperatingSystem.IsWindows())
+            {
+                services.AddPacketIntercept();
+            }
         }
 
         /// <summary>
@@ -42,12 +53,27 @@ namespace FastGithub
         /// <param name="app"></param>
         public void Configure(IApplicationBuilder app)
         {
-            app.UseRequestLogging();
-            app.UseReverseProxy();
-            app.UseRouting();
-            app.UseEndpoints(endpoints =>
+            var httpProxyPort = app.ApplicationServices.GetRequiredService<IOptions<FastGithubOptions>>().Value.HttpProxyPort;
+            app.MapWhen(context => context.Connection.LocalPort == httpProxyPort, appBuilder =>
             {
-                endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}");
+                appBuilder.UseHttpProxy();
+            });
+
+            app.MapWhen(context => context.Connection.LocalPort != httpProxyPort, appBuilder =>
+            {
+                appBuilder.UseRequestLogging();
+                appBuilder.UseHttpReverseProxy();
+
+                appBuilder.UseRouting();
+                appBuilder.DisableRequestLogging();
+                appBuilder.UseEndpoints(endpoint =>
+                {
+                    endpoint.MapGet("/flowStatistics", context =>
+                    {
+                        var flowStatistics = context.RequestServices.GetRequiredService<IFlowAnalyzer>().GetFlowStatistics();
+                        return context.Response.WriteAsJsonAsync(flowStatistics);
+                    });
+                });
             });
         }
     }

@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using System;
+﻿using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -14,35 +12,30 @@ namespace FastGithub.Configuration
     /// </summary>
     public class FastGithubConfig
     {
-        private readonly ILogger<FastGithubConfig> logger;
         private SortedDictionary<DomainPattern, DomainConfig> domainConfigs;
         private ConcurrentDictionary<string, DomainConfig?> domainConfigCache;
 
         /// <summary>
-        /// 未污染的dns
-        /// </summary>  
-        public IPEndPoint PureDns { get; private set; }
+        /// http代理端口
+        /// </summary>
+        public int HttpProxyPort { get; set; }
 
         /// <summary>
-        /// 速度快的dns
+        /// 回退的dns
         /// </summary>
-        public IPEndPoint FastDns { get; private set; }
-
+        public IPEndPoint[] FallbackDns { get; set; }
 
         /// <summary>
         /// FastGithub配置
         /// </summary>
         /// <param name="options"></param>
         /// <param name="logger"></param>
-        public FastGithubConfig(
-            IOptionsMonitor<FastGithubOptions> options,
-            ILogger<FastGithubConfig> logger)
+        public FastGithubConfig(IOptionsMonitor<FastGithubOptions> options)
         {
-            this.logger = logger;
             var opt = options.CurrentValue;
 
-            this.PureDns = opt.PureDns.ToIPEndPoint();
-            this.FastDns = opt.FastDns.ToIPEndPoint();
+            this.HttpProxyPort = opt.HttpProxyPort;
+            this.FallbackDns = opt.FallbackDns;
             this.domainConfigs = ConvertDomainConfigs(opt.DomainConfigs);
             this.domainConfigCache = new ConcurrentDictionary<string, DomainConfig?>();
 
@@ -55,17 +48,10 @@ namespace FastGithub.Configuration
         /// <param name="options"></param>
         private void Update(FastGithubOptions options)
         {
-            try
-            {
-                this.PureDns = options.PureDns.ToIPEndPoint();
-                this.FastDns = options.FastDns.ToIPEndPoint();
-                this.domainConfigs = ConvertDomainConfigs(options.DomainConfigs);
-                this.domainConfigCache = new ConcurrentDictionary<string, DomainConfig?>();
-            }
-            catch (Exception ex)
-            {
-                this.logger.LogError(ex.Message);
-            }
+            this.HttpProxyPort = options.HttpProxyPort;
+            this.FallbackDns = options.FallbackDns;
+            this.domainConfigs = ConvertDomainConfigs(options.DomainConfigs);
+            this.domainConfigCache = new ConcurrentDictionary<string, DomainConfig?>();
         }
 
         /// <summary>
@@ -90,7 +76,7 @@ namespace FastGithub.Configuration
         /// <returns></returns>
         public bool IsMatch(string domain)
         {
-            return this.domainConfigs.Keys.Any(item => item.IsMatch(domain));
+            return this.TryGetDomainConfig(domain, out _);
         }
 
         /// <summary>
@@ -109,6 +95,15 @@ namespace FastGithub.Configuration
                 var key = this.domainConfigs.Keys.FirstOrDefault(item => item.IsMatch(domain));
                 return key == null ? null : this.domainConfigs[key];
             }
+        }
+
+        /// <summary>
+        /// 获取所有域名表达式
+        /// </summary>
+        /// <returns></returns>
+        public DomainPattern[] GetDomainPatterns()
+        {
+            return this.domainConfigs.Keys.ToArray();
         }
     }
 }

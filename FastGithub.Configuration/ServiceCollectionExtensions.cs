@@ -1,7 +1,7 @@
 ﻿using FastGithub.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace FastGithub
 {
@@ -15,10 +15,13 @@ namespace FastGithub
         /// </summary>
         /// <param name="services"></param> 
         /// <returns></returns>
-        public static OptionsBuilder<FastGithubOptions> AddConfiguration(this IServiceCollection services)
+        public static IServiceCollection AddConfiguration(this IServiceCollection services)
         {
+            TypeConverterBinder.Bind(val => IPAddress.Parse(val), val => val?.ToString());
+            TypeConverterBinder.Bind(val => IPEndPoint.Parse(val), val => val?.ToString());
+
             services.TryAddSingleton<FastGithubConfig>();
-            return services.AddOptions<FastGithubOptions>();
+            return services;
         }
     }
 }

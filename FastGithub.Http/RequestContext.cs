@@ -10,16 +10,22 @@ namespace FastGithub.Http
         /// <summary>
         /// 获取或设置是否为https请求
         /// </summary>
-        public bool IsHttps { get; set; }
+        public bool IsHttps { get; }
 
         /// <summary>
-        /// 请求的域名
+        /// 获取或设置Sni值
         /// </summary>
-        public string? Domain { get; set; }
+        public TlsSniPattern TlsSniValue { get; }
 
         /// <summary>
-        /// 获取或设置Sni值的表达式 
+        /// 请求上下文
         /// </summary>
-        public TlsSniPattern TlsSniPattern { get; set; }
+        /// <param name="isHttps"></param>
+        /// <param name="tlsSniValue"></param>
+        public RequestContext(bool isHttps, TlsSniPattern tlsSniValue)
+        {
+            IsHttps = isHttps;
+            TlsSniValue = tlsSniValue;
+        }
     }
 }
